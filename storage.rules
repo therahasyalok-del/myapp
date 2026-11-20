@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+
+    // Public access is limited to catalog media. Publishing metadata is separately protected by Firestore.
+    match /videos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /thumbnails/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Future user submissions: intentionally disabled. To enable, replace `if false` with
+    // the documented owner/size/type checks only after activating the submission workflow.
+    match /user-submissions/{uid}/{allPaths=**} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if false;
+    }
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}
